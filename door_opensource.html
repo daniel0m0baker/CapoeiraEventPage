@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<!--
+  Capoeira Event Door Check-In Page
+  Created by Daniel Baker (Contra Mestre Soldado)
+  MIT License · Copyright (c) 2026 Daniel Baker
+  See index.html for full license text.
+  
+  SETUP: Set ADMIN_PASSWORD and S3 credentials below.
+-->
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Event Door · Batizado & Formatura 2026</title>
+<style>
+:root{
+  --red:#e8001d;
+  --bg:#fff;
+  --text:#111;
+  --muted:#666;
+  --border:#d0d0d0;
+  --surface:#f4f4f4;
+  --green:#2a8a3a;
+  --orange:#f5a623;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;}
+
+#topbar{position:sticky;top:0;background:#fff;border-bottom:2px solid var(--red);padding:10px 14px;display:flex;align-items:center;gap:10px;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,0.05);}
+#topbar h1{margin:0;font-size:16px;font-weight:700;flex:1;}
+#topbar .stats{font-size:12px;color:var(--muted);}
+#topbar .stats strong{color:var(--text);}
+#topbar button{background:var(--red);color:#fff;border:none;padding:7px 12px;border-radius:5px;font-size:13px;font-weight:600;cursor:pointer;}
+
+#search{margin:12px 14px;}
+#search input{width:100%;padding:11px 14px;border:1px solid var(--border);border-radius:6px;font-size:15px;}
+
+#filters{margin:0 14px 8px;display:flex;gap:6px;flex-wrap:wrap;}
+.filter-chip{padding:5px 12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;font-size:12px;cursor:pointer;font-weight:600;}
+.filter-chip.active{background:var(--red);color:#fff;border-color:var(--red);}
+
+#status{margin:0 14px 8px;font-size:12px;color:var(--muted);min-height:16px;}
+
+#list{padding:0 14px 80px;}
+.pass{display:flex;align-items:center;gap:10px;padding:11px 12px;background:#fff;border:1px solid var(--border);border-radius:7px;margin-bottom:7px;}
+.pass.checked{background:#f0fbf2;border-color:var(--green);}
+.pass.pending{background:#fff8eb;border-color:var(--orange);}
+.pass-info{flex:1;min-width:0;}
+.pass-apelido{font-weight:700;font-size:15px;}
+.pass-email{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pass-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.pass-status{font-size:10px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;padding:2px 6px;border-radius:3px;display:inline-block;margin-right:5px;}
+.pass-status.paid{background:var(--red);color:#fff;}
+.pass-status.pending{background:var(--orange);color:#fff;}
+.pass-status.checked{background:var(--green);color:#fff;}
+.checkin-btn{padding:9px 14px;border:1px solid var(--red);background:#fff;color:var(--red);border-radius:6px;font-weight:700;font-size:13px;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0;}
+.checkin-btn:disabled{opacity:0.6;cursor:default;}
+.checkin-btn.done{background:var(--green);color:#fff;border-color:var(--green);}
+
+#login{padding:30px 20px;max-width:340px;margin:60px auto;text-align:center;}
+#login h2{margin:0 0 16px;}
+#login input{width:100%;padding:11px;border:1px solid var(--border);border-radius:6px;font-size:15px;margin-bottom:10px;}
+#login button{width:100%;padding:12px;background:var(--red);color:#fff;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em;}
+#login .err{color:var(--red);font-size:13px;margin-top:8px;display:none;}
+
+#manualForm{display:none;margin:0 14px 12px;padding:12px;background:#fffbf0;border:2px solid var(--orange);border-radius:7px;}
+#manualForm input{width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:5px;font-size:14px;margin-bottom:8px;}
+#manualForm button{padding:9px 14px;background:var(--red);color:#fff;border:none;border-radius:5px;font-weight:700;cursor:pointer;font-size:13px;text-transform:uppercase;}
+#manualForm .cancel{background:#888;margin-left:6px;}
+
+#confirmModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center;padding:20px;}
+#confirmModal.open{display:flex;}
+#confirmModal .box{background:#fff;border-radius:10px;padding:22px;max-width:340px;width:100%;box-shadow:0 6px 24px rgba(0,0,0,0.2);}
+#confirmModal h3{margin:0 0 8px;font-size:17px;}
+#confirmModal p{margin:0 0 18px;color:var(--muted);font-size:14px;}
+#confirmModal .actions{display:flex;gap:8px;}
+#confirmModal button{flex:1;padding:11px;border:none;border-radius:6px;font-weight:700;font-size:14px;cursor:pointer;text-transform:uppercase;letter-spacing:0.04em;}
+.btn-yes{background:var(--green);color:#fff;}
+.btn-no{background:#e0e0e0;color:#333;}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h2>🚪 Event Door</h2>
+  <p style="color:#666;font-size:13px;margin:0 0 20px;">Enter the admin password to continue</p>
+  <input id="loginPw" type="password" placeholder="Password" autocomplete="current-password">
+  <button onclick="doLogin()">Unlock</button>
+  <div class="err" id="loginErr">Wrong password.</div>
+</div>
+
+<div id="app" style="display:none;">
+  <div id="topbar">
+    <h1>🚪 Door</h1>
+    <div class="stats">
+      <strong id="statCheckedIn">0</strong>/<strong id="statTotal">0</strong> in
+    </div>
+    <button onclick="toggleManual()">+ Add</button>
+    <button onclick="loadPasses()" style="background:#888;">↻</button>
+  </div>
+
+  <div id="manualForm">
+    <div style="font-size:12px;font-weight:700;margin-bottom:6px;text-transform:uppercase;color:#666;">Add cash-at-door pass</div>
+    <input id="manualEmail" type="email" placeholder="email@example.com">
+    <input id="manualApelido" type="text" placeholder="Apelido">
+    <button onclick="addManualPass()">Add &amp; Check In</button>
+    <button onclick="toggleManual()" class="cancel">Cancel</button>
+  </div>
+
+  <div id="search">
+    <input id="searchBox" type="text" placeholder="Search by apelido or email…" oninput="renderList()">
+  </div>
+
+  <div id="filters">
+    <div class="filter-chip active" data-filter="all" onclick="setFilter('all')">All</div>
+    <div class="filter-chip" data-filter="paid" onclick="setFilter('paid')">Paid (not in)</div>
+    <div class="filter-chip" data-filter="checked" onclick="setFilter('checked')">Checked in</div>
+    <div class="filter-chip" data-filter="pending" onclick="setFilter('pending')">Pending</div>
+  </div>
+
+  <div id="status"></div>
+  <div id="list"></div>
+</div>
+
+<div id="confirmModal">
+  <div class="box">
+    <h3 id="confirmTitle">Check in?</h3>
+    <p id="confirmText">Mark this guest as arrived?</p>
+    <div class="actions">
+      <button class="btn-no" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-yes" onclick="confirmCheckIn()">Yes, check in</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────
+var S3 = {
+  endpoint: 'https://eu-central-2.storage.impossibleapi.net',
+  bucket:   'your-bucket',
+  region:   'eu-central-2',
+  ak:       'YOUR_ACCESS_KEY',
+  sk:       'YOUR_SECRET_KEY'
+};
+var STATE_PATH_PASSES = '_state/passes/';
+var ADMIN_PASSWORD = 'CHANGE_THIS_DOOR_PASSWORD';
+
+// ── State ──────────────────────────────────────────────────────────────
+var passes = [];      // array of {key, email, apelido, status, paid_at, checked_in_at, ...}
+var filter = 'all';
+var pendingCheckin = null;  // pass key being confirmed
+
+// ── Login ──────────────────────────────────────────────────────────────
+function doLogin(){
+  var pw = document.getElementById('loginPw').value;
+  if(pw === ADMIN_PASSWORD){
+    sessionStorage.setItem('event_door_auth', '1');
+    showApp();
+  } else {
+    document.getElementById('loginErr').style.display = 'block';
+  }
+}
+function showApp(){
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadPasses();
+  // Auto-refresh every 30s
+  setInterval(loadPasses, 30000);
+}
+if(sessionStorage.getItem('event_door_auth') === '1') showApp();
+document.getElementById('loginPw').addEventListener('keypress', function(e){
+  if(e.key === 'Enter') doLogin();
+});
+
+// ── S3 helpers (copied verbatim from main page) ────────────────────────
+function hex(buf){
+  return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+}
+
+function sha256(str){
+  var enc=new TextEncoder();
+  return crypto.subtle.digest('SHA-256', enc.encode(str)).then(hex);
+}
+
+function hmac(key, str){
+  var enc=new TextEncoder();
+  return crypto.subtle.importKey('raw', key, {name:'HMAC',hash:'SHA-256'}, false, ['sign'])
+    .then(function(k){ return crypto.subtle.sign('HMAC', k, enc.encode(str)); });
+}
+
+function hmacHex(key, str){ return hmac(key, str).then(hex); }
+
+async function presignGet(key){
+  var now = new Date();
+  var ymd = now.toISOString().slice(0,10).replace(/-/g,'');
+  var hms = now.toISOString().slice(11,19).replace(/:/g,'');
+  var datetime = ymd + 'T' + hms + 'Z';
+  var credScope = ymd + '/' + S3.region + '/s3/aws4_request';
+  var host = S3.endpoint.replace('https://','').replace(/\/$/,'');
+  // Encode each segment of the key path individually
+  var encodedKey = key.split('/').map(function(p){ return encodeURIComponent(p); }).join('/');
+  var canonicalUri = '/' + S3.bucket + '/' + encodedKey;
+
+  var qs = [
+    'X-Amz-Algorithm=AWS4-HMAC-SHA256',
+    'X-Amz-Credential=' + encodeURIComponent(S3.ak + '/' + credScope),
+    'X-Amz-Date=' + datetime,
+    'X-Amz-Expires=3600',
+    'X-Amz-SignedHeaders=host'
+  ].join('&');
+
+  var canonHeaders = 'host:' + host + '\n';
+  var canonicalReq = 'GET\n' + canonicalUri + '\n' + qs + '\n' +
+    canonHeaders + '\nhost\nUNSIGNED-PAYLOAD';
+
+  var canonHash = await sha256(canonicalReq);
+  var stringToSign = 'AWS4-HMAC-SHA256\n' + datetime + '\n' + credScope + '\n' + canonHash;
+
+  var enc = new TextEncoder();
+  var kDate    = await hmac(enc.encode('AWS4' + S3.sk), ymd);
+  var kRegion  = await hmac(kDate, S3.region);
+  var kService = await hmac(kRegion, 's3');
+  var kSign    = await hmac(kService, 'aws4_request');
+  var signature = await hmacHex(kSign, stringToSign);
+
+  return S3.endpoint + canonicalUri + '?' + qs + '&X-Amz-Signature=' + signature;
+}
+
+async function s3PutJson(key, obj){
+  var body = JSON.stringify(obj);
+  var contentType = 'application/json';
+  var now = new Date();
+  var ymd = now.toISOString().slice(0,10).replace(/-/g,'');
+  var hms = now.toISOString().slice(11,19).replace(/:/g,'');
+  var datetime = ymd + 'T' + hms + 'Z';
+  var host = S3.endpoint.replace('https://','').replace(/\/$/,'');
+  var encodedKey = key.split('/').map(function(p){return encodeURIComponent(p);}).join('/');
+  var canonicalUri = '/' + S3.bucket + '/' + encodedKey;
+  var url = S3.endpoint + canonicalUri;
+  var enc = new TextEncoder();
+  var payloadHash = await crypto.subtle.digest('SHA-256', enc.encode(body)).then(hex);
+  var signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';
+  var canonHeaders =
+    'content-type:' + contentType + '\n' +
+    'host:' + host + '\n' +
+    'x-amz-content-sha256:' + payloadHash + '\n' +
+    'x-amz-date:' + datetime + '\n';
+  var canonicalReq = 'PUT\n' + canonicalUri + '\n\n' +
+    canonHeaders + '\n' + signedHeaders + '\n' + payloadHash;
+  var credScope = ymd + '/' + S3.region + '/s3/aws4_request';
+  var canonHash = await sha256(canonicalReq);
+  var stringToSign = 'AWS4-HMAC-SHA256\n' + datetime + '\n' + credScope + '\n' + canonHash;
+  var kDate    = await hmac(enc.encode('AWS4' + S3.sk), ymd);
+  var kRegion  = await hmac(kDate, S3.region);
+  var kService = await hmac(kRegion, 's3');
+  var kSign    = await hmac(kService, 'aws4_request');
+  var signature = await hmacHex(kSign, stringToSign);
+  var authHeader = 'AWS4-HMAC-SHA256 Credential=' + S3.ak + '/' + credScope +
+    ', SignedHeaders=' + signedHeaders + ', Signature=' + signature;
+  console.log('[Sync] PUT', key, body.length, 'bytes');
+  var resp = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Content-Type':         contentType,
+      'x-amz-date':           datetime,
+      'x-amz-content-sha256': payloadHash,
+      'Authorization':        authHeader
+    },
+    body: body
+  });
+  if(!resp.ok){
+    var errText = await resp.text().catch(function(){return '';});
+    console.error('[Sync] PUT failed:', resp.status, errText);
+    throw new Error('S3 PUT ' + resp.status + (errText ? ': ' + errText.substring(0,120) : ''));
+  }
+  console.log('[Sync] PUT ok');
+  return true;
+}
+
+async function s3GetJson(key){
+  // Each presigned URL has a fresh timestamp in X-Amz-Date, so the URL itself
+  // is unique per call — that's enough cache-busting. cache:'no-store' belt-and-braces.
+  var url = await presignGet(key);
+  console.log('[Sync] GET', key);
+  var resp = await fetch(url, { cache: 'no-store' });
+  if(!resp.ok){
+    if(resp.status === 404) { console.log('[Sync] no remote data yet (404)'); return null; }
+    var errText = await resp.text().catch(function(){return '';});
+    throw new Error('S3 GET ' + resp.status + (errText ? ': ' + errText.substring(0,100) : ''));
+  }
+  var text = await resp.text();
+  console.log('[Sync] GET ok, ' + text.length + ' bytes');
+  try { return JSON.parse(text); } catch(e){ console.error('[Sync] JSON parse failed:', e); return null; }
+}
+
+function emailSlug(email){
+  // Make a filesystem-safe slug from the email
+  return email.toLowerCase().trim()
+    .replace(/[^a-z0-9@._-]/g, '_')
+    .replace(/[@]/g, '_at_')
+    .replace(/[.]/g, '_')
+    .substring(0, 80);
+}
+
+// ── List passes by prefix (custom S3 list with prefix) ────────────────
+async function listPasses(){
+  var now = new Date();
+  var ymd = now.toISOString().slice(0,10).replace(/-/g,'');
+  var hms = now.toISOString().slice(11,19).replace(/:/g,'');
+  var datetime = ymd + 'T' + hms + 'Z';
+  var host = S3.endpoint.replace('https://','').replace(/\/$/,'');
+  var canonicalUri = '/' + S3.bucket + '/';
+  var queryString = 'list-type=2&prefix=' + encodeURIComponent(STATE_PATH_PASSES);
+  var url = S3.endpoint + canonicalUri + '?' + queryString;
+  var payloadHash = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+  var signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+  var canonHeaders = 'host:' + host + '\n' +
+    'x-amz-content-sha256:' + payloadHash + '\n' +
+    'x-amz-date:' + datetime + '\n';
+  var canonicalReq = 'GET\n' + canonicalUri + '\n' + queryString + '\n' +
+    canonHeaders + '\n' + signedHeaders + '\n' + payloadHash;
+  var credScope = ymd + '/' + S3.region + '/s3/aws4_request';
+  var canonHash = await sha256(canonicalReq);
+  var stringToSign = 'AWS4-HMAC-SHA256\n' + datetime + '\n' + credScope + '\n' + canonHash;
+  var enc = new TextEncoder();
+  var kDate    = await hmac(enc.encode('AWS4' + S3.sk), ymd);
+  var kRegion  = await hmac(kDate, S3.region);
+  var kService = await hmac(kRegion, 's3');
+  var kSign    = await hmac(kService, 'aws4_request');
+  var signature = await hmacHex(kSign, stringToSign);
+  var authHeader = 'AWS4-HMAC-SHA256 Credential=' + S3.ak + '/' + credScope +
+    ', SignedHeaders=' + signedHeaders + ', Signature=' + signature;
+  var resp = await fetch(url, {
+    headers: {
+      'x-amz-date':           datetime,
+      'x-amz-content-sha256': payloadHash,
+      'Authorization':        authHeader
+    }
+  });
+  if(!resp.ok) throw new Error('List ' + resp.status);
+  var xml = await resp.text();
+  var keys = [];
+  var rx = /<Key>([^<]+)<\/Key>/g, m;
+  while((m = rx.exec(xml))) {
+    var k = m[1];
+    if(k && k.indexOf(STATE_PATH_PASSES) === 0 && k.endsWith('.json')) keys.push(k);
+  }
+  return keys;
+}
+
+// ── Load all passes ─────────────────────────────────────────────────────
+async function loadPasses(){
+  var statusEl = document.getElementById('status');
+  statusEl.textContent = 'Loading…';
+  try {
+    var keys = await listPasses();
+    statusEl.textContent = 'Loading ' + keys.length + ' passes…';
+    var loaded = await Promise.all(keys.map(function(key){
+      var fileKey = key.substring(STATE_PATH_PASSES.length).replace(/\.json$/, '');
+      return s3GetJson(key).then(function(rec){
+        if(!rec) return null;
+        rec._key = key;
+        rec._slug = fileKey;
+        return rec;
+      }).catch(function(e){ console.warn('skip', key, e.message); return null; });
+    }));
+    passes = loaded.filter(Boolean);
+    // Sort: checked in last, then by apelido
+    passes.sort(function(a,b){
+      var aChecked = a.checked_in_at ? 1 : 0;
+      var bChecked = b.checked_in_at ? 1 : 0;
+      if(aChecked !== bChecked) return aChecked - bChecked;
+      return (a.apelido||'').localeCompare(b.apelido||'');
+    });
+    // Cache for offline
+    try { localStorage.setItem('event_door_cache', JSON.stringify({ts:Date.now(), passes:passes})); } catch(e){}
+    renderList();
+    statusEl.textContent = 'Last sync: ' + new Date().toLocaleTimeString();
+  } catch(e){
+    console.error('Load failed:', e);
+    statusEl.textContent = '⚠ Sync failed (' + e.message + '). Showing cached data.';
+    // Try to load from cache
+    try {
+      var cache = JSON.parse(localStorage.getItem('event_door_cache') || '{}');
+      if(cache.passes){ passes = cache.passes; renderList(); }
+    } catch(e){}
+  }
+}
+
+// ── Render ──────────────────────────────────────────────────────────────
+function renderList(){
+  var search = document.getElementById('searchBox').value.trim().toLowerCase();
+  var listEl = document.getElementById('list');
+  var filtered = passes.filter(function(p){
+    if(filter === 'paid' && (p.status !== 'paid' || p.checked_in_at)) return false;
+    if(filter === 'checked' && !p.checked_in_at) return false;
+    if(filter === 'pending' && p.status !== 'pending') return false;
+    if(search){
+      var hay = ((p.apelido||'') + ' ' + (p.email||'')).toLowerCase();
+      if(hay.indexOf(search) === -1) return false;
+    }
+    return true;
+  });
+  // Stats
+  var checkedCount = passes.filter(function(p){return p.checked_in_at;}).length;
+  document.getElementById('statCheckedIn').textContent = checkedCount;
+  document.getElementById('statTotal').textContent = passes.length;
+  if(filtered.length === 0){
+    listEl.innerHTML = '<div style="text-align:center;padding:40px 20px;color:#888;font-size:14px;">No matching passes.</div>';
+    return;
+  }
+  listEl.innerHTML = filtered.map(function(p){
+    var statusBadge = '';
+    if(p.checked_in_at) statusBadge = '<span class="pass-status checked">✓ In</span>';
+    else if(p.status === 'paid') statusBadge = '<span class="pass-status paid">Paid</span>';
+    else statusBadge = '<span class="pass-status pending">Pending</span>';
+    var rowClass = p.checked_in_at ? 'pass checked' : (p.status === 'pending' ? 'pass pending' : 'pass');
+    var btn = p.checked_in_at
+      ? '<button class="checkin-btn done" disabled>✓</button>'
+      : '<button class="checkin-btn" onclick="askCheckIn(\'' + p._key.replace(/'/g,"\\'") + '\')">Check In</button>';
+    var time = p.checked_in_at
+      ? 'In at ' + new Date(p.checked_in_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+      : (p.paid_at ? 'Paid ' + new Date(p.paid_at).toLocaleDateString() : 'Created ' + new Date(p.created_at).toLocaleDateString());
+    return '<div class="' + rowClass + '">' +
+      '<div class="pass-info">' +
+        '<div class="pass-apelido">' + escapeHtml(p.apelido || '?') + '</div>' +
+        '<div class="pass-email">' + escapeHtml(p.email || '') + '</div>' +
+        '<div class="pass-meta">' + statusBadge + time + '</div>' +
+      '</div>' + btn +
+      '</div>';
+  }).join('');
+}
+
+function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, function(c){
+  return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+}); }
+
+function setFilter(f){
+  filter = f;
+  document.querySelectorAll('.filter-chip').forEach(function(el){
+    el.classList.toggle('active', el.getAttribute('data-filter') === f);
+  });
+  renderList();
+}
+
+// ── Check in flow ───────────────────────────────────────────────────────
+function askCheckIn(key){
+  var p = passes.find(function(x){return x._key === key;});
+  if(!p) return;
+  pendingCheckin = key;
+  document.getElementById('confirmTitle').textContent = 'Check in ' + p.apelido + '?';
+  document.getElementById('confirmText').textContent = (p.email || '') +
+    (p.status !== 'paid' ? ' — ⚠ Status: ' + p.status : '');
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm(){
+  document.getElementById('confirmModal').classList.remove('open');
+  pendingCheckin = null;
+}
+async function confirmCheckIn(){
+  if(!pendingCheckin) return;
+  var key = pendingCheckin;
+  closeConfirm();
+  var p = passes.find(function(x){return x._key === key;});
+  if(!p) return;
+  p.checked_in_at = new Date().toISOString();
+  p.checked_in_by = 'door';
+  // Optimistic UI
+  renderList();
+  try {
+    await s3PutJson(key, {
+      email: p.email,
+      apelido: p.apelido,
+      status: p.status === 'pending' ? 'paid' : p.status, // upgrade pending→paid on door check-in
+      created_at: p.created_at,
+      paid_at: p.paid_at || new Date().toISOString(),
+      checked_in_at: p.checked_in_at,
+      checked_in_by: p.checked_in_by
+    });
+  } catch(e){
+    alert('⚠ Sync failed: ' + e.message + '\n\nGuest is checked in locally but may need to be re-checked when network returns.');
+  }
+}
+
+// ── Manual add ──────────────────────────────────────────────────────────
+function toggleManual(){
+  var f = document.getElementById('manualForm');
+  f.style.display = f.style.display === 'block' ? 'none' : 'block';
+}
+async function addManualPass(){
+  var email = document.getElementById('manualEmail').value.trim().toLowerCase();
+  var apelido = document.getElementById('manualApelido').value.trim();
+  if(!email || !apelido){ alert('Email and Apelido required.'); return; }
+  var key = STATE_PATH_PASSES + emailSlug(email) + '.json';
+  var record = {
+    email: email,
+    apelido: apelido,
+    status: 'paid',
+    created_at: new Date().toISOString(),
+    paid_at: new Date().toISOString(),
+    checked_in_at: new Date().toISOString(),
+    checked_in_by: 'door-manual'
+  };
+  try {
+    await s3PutJson(key, record);
+    document.getElementById('manualEmail').value = '';
+    document.getElementById('manualApelido').value = '';
+    toggleManual();
+    loadPasses();
+  } catch(e){
+    alert('⚠ Add failed: ' + e.message);
+  }
+}
+</script>
+</body>
+</html>
