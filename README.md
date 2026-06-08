@@ -2,9 +2,9 @@
 
 A mobile-first, single-file web application for managing Capoeira Batizado & Formatura events. Built for the community, by the community.
 
-**Created by Daniel Baker (Contra Mestre Soldado) · [Xará Capoeira Hamburg](https://xara-capoeira.com)**
+**Created by Daniel Baker (Mestre Soldado) · [Xará Capoeira Hamburg](https://xara-capoeira.com)**
 
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)
 
 ## Features
 
@@ -75,7 +75,7 @@ Uses any S3-compatible object storage (AWS S3, Cloudflare R2, Impossible Cloud, 
 
 ## License
 
-[MIT](LICENSE) — free to use, modify, and distribute. Credit appreciated.
+[CC BY-NC 4.0](LICENSE) — free to use, modify, and share for non-commercial purposes. Credit required.
 
 ---
 
