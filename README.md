@@ -65,6 +65,27 @@ Uses any S3-compatible object storage (AWS S3, Cloudflare R2, Impossible Cloud, 
 | Rank transition | `updateContactName()` threshold date |
 | Brand colors | CSS variables: `--red`, `--black`, `--text`, `--surface` |
 
+
+
+## Security & Roadmap
+
+See **[SECURITY.md](SECURITY.md)** for a full breakdown of known limitations and how to harden the app.
+
+### Feature Roadmap
+
+Contributions welcome — pick an item and open a PR:
+
+- [ ] **Cloudflare Worker proxy** — hide S3 credentials server-side (~50 LOC)
+- [ ] **Server-side admin auth** — JWT-based login via Worker (~80 LOC)
+- [ ] **PayPal webhook verification** — confirm payments server-side (~100 LOC)
+- [ ] **Upload validation** — file type/size checks client + server (~30 LOC)
+- [ ] **PWA support** — service worker for offline schedule access
+- [ ] **Image compression** — resize photos client-side before upload
+- [ ] **QR code check-in** — generate per-pass QR codes, scan at door
+- [ ] **Multi-event support** — config file per event, same codebase
+- [ ] **Dark mode** — respect `prefers-color-scheme`
+- [ ] **Accessibility** — ARIA labels, keyboard navigation, screen reader support
+
 ## Tech Stack
 
 - Vanilla HTML / CSS / JS (no frameworks)
