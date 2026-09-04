@@ -753,12 +753,14 @@ function setLang(lang){
   if(badge) { badge.remove(); showPassBadge(); }
 }
 
-// Initial page from the URL: ?admin / #admin, or ?pass=confirmed (PayPal return).
+// Initial page from the URL: ?admin / #admin, ?pass=confirmed (PayPal return),
+// or any #<page> share link (#locations, #party, ...). Unknown hashes are ignored.
 // Called at startup before checkPartyPass() rewrites the URL.
 function resolveInitialPage(){
-  var search=window.location.search, hash=window.location.hash;
-  if(search.indexOf('admin')!==-1||hash==='#admin') return 'admin';
+  var search=window.location.search, hash=window.location.hash.replace(/^#/,'');
+  if(search.indexOf('admin')!==-1||hash==='admin') return 'admin';
   if(search.indexOf('pass=confirmed')!==-1) return 'party';
+  if(hash && pages.indexOf(hash)!==-1) return hash;
   return 'schedule';
 }
 
@@ -776,6 +778,8 @@ function goPage(id){
     if(on) p.setAttribute('aria-current','page'); else p.removeAttribute('aria-current');
   });
   currentPage=id;
+  // Keep #<page> in the URL so the current page survives reload and share links (no scroll jump).
+  try { history.replaceState(history.state, '', '#'+id); } catch(e){}
   window.scrollTo(0,0);
   onPageChanged(id);
 }
