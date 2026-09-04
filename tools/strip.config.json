@@ -1,0 +1,16 @@
+{
+  "replace": {
+    "your-real-bucket-name": "your-bucket",
+    "https://your-real-endpoint.example.com": "https://eu-central-2.storage.impossibleapi.net",
+    "AKIA_REAL_ACCESS_KEY": "YOUR_ACCESS_KEY",
+    "REAL_SECRET_KEY": "YOUR_SECRET_KEY",
+    "REAL_PAYPAL_BUTTON_ID": "YOUR_PAYPAL_BUTTON_ID",
+    "real-admin-password": "CHANGE_THIS_PASSWORD",
+    "real-door-password": "CHANGE_THIS_DOOR_PASSWORD"
+  },
+  "mustNotContain": [
+    "twemoji",
+    "AKIA_REAL_ACCESS_KEY",
+    "REAL_SECRET_KEY"
+  ]
+}

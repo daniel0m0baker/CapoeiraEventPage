@@ -67,6 +67,42 @@ Uses any S3-compatible object storage (AWS S3, Cloudflare R2, Impossible Cloud, 
 
 
 
+## Publishing from a private copy
+
+The public `index_opensource.html` is generated from a private `index.html` (not in this repo) that holds real S3 keys, the PayPal button ID and a Twemoji CDN call. Do not hand-edit the public file; mark the private parts and let `tools/strip.js` produce it.
+
+1. **Mark private blocks** in the private file. Whole lines are removed, markers included, and a block may span many lines:
+
+   ```html
+   <!-- OSS-STRIP-START -->
+   <script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15/dist/twemoji.min.js"></script>
+   <!-- OSS-STRIP-END -->
+   ```
+
+   ```js
+   /* OSS-STRIP-START */
+   twemoji.parse(document.body, { folder: 'svg', ext: '.svg' });
+   /* OSS-STRIP-END */
+   ```
+
+2. **List token replacements** in `tools/strip.config.json` (`"replace": { "real value": "YOUR_PLACEHOLDER" }`). Strings in `"mustNotContain"` fail the run if they survive in the output.
+
+3. **Generate the public file:**
+
+   ```bash
+   node tools/strip.js index.html index_opensource.html
+   ```
+
+   The script removes every marked block, applies the replacements, then runs `node --check` on each `<script>` block of the output and exits non-zero on a parse error, an unbalanced marker, or a leaked string.
+
+4. **Run the self-test** (also useful after editing the script):
+
+   ```bash
+   node tools/strip.js --test
+   ```
+
+5. **Commit `index_opensource.html`.** The `check` workflow (`.github/workflows/check.yml`) repeats the `node --check` pass on every push and PR, warns about remaining `YOUR_` placeholders on branches, and fails on them for tags.
+
 ## Security & Roadmap
 
 See **[SECURITY.md](SECURITY.md)** for a full breakdown of known limitations and how to harden the app.
