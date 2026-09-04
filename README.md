@@ -60,7 +60,7 @@ Uses any S3-compatible object storage (AWS S3, Cloudflare R2, Impossible Cloud, 
 | Schedule | Language wrapper divs inside `s-schedule` |
 | Teachers list | `<option>` tags in admin panel `<select>` elements |
 | Rooms list | Room `<option>` tags in admin panel |
-| Languages | Add `data-lang="xx"` spans + update `setLang()` labels/flags |
+| Languages | Add `data-lang="xx"` spans + add the code to the `LANGS` map (label + flag) |
 | Belt levels | `ws-level-years` content in each level row |
 | Rank transition | `updateContactName()` threshold date |
 | Brand colors | CSS variables: `--red`, `--black`, `--text`, `--surface` |

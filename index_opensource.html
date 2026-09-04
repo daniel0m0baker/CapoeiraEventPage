@@ -722,17 +722,32 @@ img.emoji{width:18px!important;height:18px!important;vertical-align:middle;displ
 
 
 </div><script>
+// Supported UI languages. Single source of truth: setLang(), the toggle button and the
+// ?lang= / localStorage / navigator.languages resolution below all derive from this map.
+var LANGS={'en':{label:'EN',flag:'🇬🇧'},'de':{label:'DE',flag:'🇩🇪'},'pt':{label:'PT',flag:'🇧🇷'},'fr':{label:'FR',flag:'🇫🇷'},'nl':{label:'NL',flag:'🇳🇱'},'es':{label:'ES',flag:'🇲🇽'}};
+var LANG_KEY='event_lang';
 var currentLang='en';
 var currentPage = 'schedule';
 var pages=['schedule','locations','party','contact','photos','mosaic','admin'];
 
+// Initial language, in priority order: ?lang=xx URL parameter, stored choice,
+// browser language list, then 'en'. Unknown codes are ignored at every step.
+function resolveInitialLang(){
+  var m=/[?&]lang=([^&#]*)/.exec(window.location.search);
+  if(m){ var q=decodeURIComponent(m[1]).slice(0,2).toLowerCase(); if(LANGS[q]) return q; }
+  try { var s=localStorage.getItem(LANG_KEY); if(s && LANGS[s]) return s; } catch(e){}
+  var navLangs=navigator.languages||[navigator.language||''];
+  for(var i=0;i<navLangs.length;i++){ var n=String(navLangs[i]).slice(0,2).toLowerCase(); if(LANGS[n]) return n; }
+  return 'en';
+}
+
 function setLang(lang){
+  if(!LANGS[lang]) lang='en';
   currentLang=lang;
   document.querySelectorAll('[data-lang]').forEach(function(el){el.classList.toggle('active',el.dataset.lang===lang);});
-  var labels={'en':'EN','de':'DE','pt':'PT','fr':'FR','nl':'NL','es':'ES'};
-  var flags={'en':'🇬🇧','de':'🇩🇪','pt':'🇧🇷','fr':'🇫🇷','nl':'🇳🇱','es':'🇲🇽'};
   var btn=document.getElementById('langToggleBtn');
-  if(btn) btn.textContent=(flags[lang]||'')+' '+(labels[lang]||lang.toUpperCase());
+  if(btn) btn.textContent=LANGS[lang].flag+' '+LANGS[lang].label;
+  try { localStorage.setItem(LANG_KEY, lang); } catch(e){}
   document.getElementById('langDropdown').style.display='none';
   var badge = document.getElementById('passBadge');
   if(badge) { badge.remove(); showPassBadge(); }
@@ -1469,7 +1484,7 @@ function applyWsData(data){
 
 // Apply saved data on page load
 document.addEventListener('DOMContentLoaded', function(){
-  setLang('en');
+  setLang(resolveInitialLang());
   // Formatura name transition: Sat May 30 2026 20:00 Your City (CEST = UTC+2) = 18:00 UTC
   function updateContactName(){
     // Set to your ceremony date/time (UTC). After this moment, the name auto-updates.
