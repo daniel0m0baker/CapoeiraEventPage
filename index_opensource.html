@@ -722,20 +722,46 @@ img.emoji{width:18px!important;height:18px!important;vertical-align:middle;displ
 
 
 </div><script>
+// Supported UI languages. Single source of truth: setLang(), the toggle button and the
+// ?lang= / localStorage / navigator.languages resolution below all derive from this map.
+var LANGS={'en':{label:'EN',flag:'🇬🇧'},'de':{label:'DE',flag:'🇩🇪'},'pt':{label:'PT',flag:'🇧🇷'},'fr':{label:'FR',flag:'🇫🇷'},'nl':{label:'NL',flag:'🇳🇱'},'es':{label:'ES',flag:'🇲🇽'}};
+var LANG_KEY='event_lang';
 var currentLang='en';
 var currentPage = 'schedule';
 var pages=['schedule','locations','party','contact','photos','mosaic','admin'];
 
+// Initial language, in priority order: ?lang=xx URL parameter, stored choice,
+// browser language list, then 'en'. Unknown codes are ignored at every step.
+function resolveInitialLang(){
+  var m=/[?&]lang=([^&#]*)/.exec(window.location.search);
+  if(m){ var q=decodeURIComponent(m[1]).slice(0,2).toLowerCase(); if(LANGS[q]) return q; }
+  try { var s=localStorage.getItem(LANG_KEY); if(s && LANGS[s]) return s; } catch(e){}
+  var navLangs=navigator.languages||[navigator.language||''];
+  for(var i=0;i<navLangs.length;i++){ var n=String(navLangs[i]).slice(0,2).toLowerCase(); if(LANGS[n]) return n; }
+  return 'en';
+}
+
 function setLang(lang){
+  if(!LANGS[lang]) lang='en';
   currentLang=lang;
   document.querySelectorAll('[data-lang]').forEach(function(el){el.classList.toggle('active',el.dataset.lang===lang);});
-  var labels={'en':'EN','de':'DE','pt':'PT','fr':'FR','nl':'NL','es':'ES'};
-  var flags={'en':'🇬🇧','de':'🇩🇪','pt':'🇧🇷','fr':'🇫🇷','nl':'🇳🇱','es':'🇲🇽'};
   var btn=document.getElementById('langToggleBtn');
-  if(btn) btn.textContent=(flags[lang]||'')+' '+(labels[lang]||lang.toUpperCase());
+  if(btn) btn.textContent=LANGS[lang].flag+' '+LANGS[lang].label;
+  try { localStorage.setItem(LANG_KEY, lang); } catch(e){}
   document.getElementById('langDropdown').style.display='none';
   var badge = document.getElementById('passBadge');
   if(badge) { badge.remove(); showPassBadge(); }
+}
+
+// Initial page from the URL: ?admin / #admin, ?pass=confirmed (PayPal return),
+// or any #<page> share link (#locations, #party, ...). Unknown hashes are ignored.
+// Called at startup before checkPartyPass() rewrites the URL.
+function resolveInitialPage(){
+  var search=window.location.search, hash=window.location.hash.replace(/^#/,'');
+  if(search.indexOf('admin')!==-1||hash==='admin') return 'admin';
+  if(search.indexOf('pass=confirmed')!==-1) return 'party';
+  if(hash && pages.indexOf(hash)!==-1) return hash;
+  return 'schedule';
 }
 
 function goPage(id){
@@ -746,8 +772,14 @@ function goPage(id){
   });
   var toEl=document.getElementById('page-'+id);
   if(toEl){toEl.classList.add('active');toEl.style.display='block';}
-  document.querySelectorAll('.tab-btn').forEach(function(p,i){p.classList.toggle('active',pages[i]===id);});
+  document.querySelectorAll('.tab-btn').forEach(function(p){
+    var on=p.dataset.page===id;
+    p.classList.toggle('active',on);
+    if(on) p.setAttribute('aria-current','page'); else p.removeAttribute('aria-current');
+  });
   currentPage=id;
+  // Keep #<page> in the URL so the current page survives reload and share links (no scroll jump).
+  try { history.replaceState(history.state, '', '#'+id); } catch(e){}
   window.scrollTo(0,0);
   onPageChanged(id);
 }
@@ -1469,7 +1501,13 @@ function applyWsData(data){
 
 // Apply saved data on page load
 document.addEventListener('DOMContentLoaded', function(){
-  setLang('en');
+  // Startup routing: language first, then page. Both read the URL here; the
+  // page is applied after checkPartyPass() below, which strips ?pass=confirmed.
+  // This replaces the routing IIFE that used to sit after this script block:
+  // it ran before the tab bar existed and left currentPage stale, so the
+  // Program tab did nothing after an #admin or ?pass=confirmed start.
+  setLang(resolveInitialLang());
+  var initialPage = resolveInitialPage();
   // Formatura name transition: Sat May 30 2026 20:00 Your City (CEST = UTC+2) = 18:00 UTC
   function updateContactName(){
     // Set to your ceremony date/time (UTC). After this moment, the name auto-updates.
@@ -1512,10 +1550,7 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }).catch(function(e){ console.warn('[Sync] S3 fetch failed, using local cache:', e.message); });
   checkPartyPass();
-  // URL routing handled by IIFE before body close
-  if(window.location.search.indexOf('pass=confirmed') !== -1){
-    goPage('party');
-  }
+  goPage(initialPage);
 });
 
 
@@ -1701,27 +1736,6 @@ function closeLangDropdown(){
 }
 
 </script>
-<script>
-(function(){
-  var search = window.location.search;
-  var hash = window.location.hash;
-  var p = (search.indexOf('admin')!==-1||hash==='#admin') ? 'admin' :
-          (search.indexOf('pass=confirmed')!==-1) ? 'party' : null;
-  console.log('[IIFE] search='+search+' p='+p);
-  if(p){
-    // Hide all pages
-    var allPages = document.querySelectorAll('.page');
-    allPages.forEach(function(el){ el.style.display='none'; el.classList.remove('active'); });
-    var target = document.getElementById('page-'+p);
-    console.log('[IIFE] target found:', !!target);
-    if(target){ 
-      target.style.display='block'; 
-      target.classList.add('active');
-      console.log('[IIFE] page-'+p+' set to block');
-    }
-  }
-})();
-</script>
 
 
 <div id="langDropdown" style="display:none;position:fixed;background:#fff;border:1px solid #ddd;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,0.2);z-index:9999;overflow:hidden;min-width:140px;">
@@ -1734,7 +1748,7 @@ function closeLangDropdown(){
 </div>
 <div id="langOverlay" onclick="closeLangDropdown()"></div>
 <div id="bottom-tabs">
-  <button class="tab-btn active" onclick="goPage('schedule')">
+  <button class="tab-btn active" data-page="schedule" aria-current="page" onclick="goPage('schedule')">
     <span class="tab-icon">🗓️</span>
     <span class="tab-label" data-lang="en">Program</span>
     <span class="tab-label" data-lang="de">Programm</span>
@@ -1743,7 +1757,7 @@ function closeLangDropdown(){
     <span class="tab-label" data-lang="nl">Programma</span>
     <span class="tab-label" data-lang="es">Programa</span>
   </button>
-  <button class="tab-btn" onclick="goPage('locations')">
+  <button class="tab-btn" data-page="locations" onclick="goPage('locations')">
     <span class="tab-icon">📍</span>
     <span class="tab-label" data-lang="en">Locations</span>
     <span class="tab-label" data-lang="de">Orte</span>
@@ -1752,7 +1766,7 @@ function closeLangDropdown(){
     <span class="tab-label" data-lang="nl">Locaties</span>
     <span class="tab-label" data-lang="es">Lugares</span>
   </button>
-  <button class="tab-btn" onclick="goPage('party')">
+  <button class="tab-btn" data-page="party" onclick="goPage('party')">
     <span class="tab-icon">🎉</span>
     <span class="tab-label" data-lang="en">Party</span>
     <span class="tab-label" data-lang="de">Party</span>
@@ -1761,7 +1775,7 @@ function closeLangDropdown(){
     <span class="tab-label" data-lang="nl">Feest</span>
     <span class="tab-label" data-lang="es">Fiesta</span>
   </button>
-  <button class="tab-btn" onclick="goPage('contact')">
+  <button class="tab-btn" data-page="contact" onclick="goPage('contact')">
     <span class="tab-icon">📞</span>
     <span class="tab-label" data-lang="en">Contact</span>
     <span class="tab-label" data-lang="de">Kontakt</span>
@@ -1770,7 +1784,7 @@ function closeLangDropdown(){
     <span class="tab-label" data-lang="nl">Contact</span>
     <span class="tab-label" data-lang="es">Contacto</span>
   </button>
-  <button class="tab-btn" onclick="goPage('photos')">
+  <button class="tab-btn" data-page="photos" onclick="goPage('photos')">
     <span class="tab-icon">📸</span>
     <span class="tab-label" data-lang="en">Photos</span>
     <span class="tab-label" data-lang="de">Fotos</span>
@@ -1779,7 +1793,7 @@ function closeLangDropdown(){
     <span class="tab-label" data-lang="nl">Foto's</span>
     <span class="tab-label" data-lang="es">Fotos</span>
   </button>
-  <button class="tab-btn" onclick="goPage('mosaic')">
+  <button class="tab-btn" data-page="mosaic" onclick="goPage('mosaic')">
     <span class="tab-icon">🖼</span>
     <span class="tab-label" data-lang="en">Gallery</span>
     <span class="tab-label" data-lang="de">Galerie</span>
