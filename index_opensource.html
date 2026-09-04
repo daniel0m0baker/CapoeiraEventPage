@@ -395,7 +395,7 @@ img.emoji{width:18px!important;height:18px!important;vertical-align:middle;displ
 <div class="schedule-item"><span class="schedule-time">14:30</span><span class="schedule-event highlight">Roda Final<span class="schedule-badge"></span></span></div>
 <div class="schedule-item"><span class="schedule-time">15:30</span><span class="schedule-event ">Café &amp; Encerramento</span></div>
 <div class="schedule-item"><span class="schedule-time">16:00</span><span class="schedule-event dim">Arrumação</span></div></div>
-        <div data-lang="fr" class="active"><div class="day-label">Vendredi · 29 Mai 2026</div>
+        <div data-lang="fr"><div class="day-label">Vendredi · 29 Mai 2026</div>
 <div class="schedule-item"><span class="schedule-time">18:00</span><span class="schedule-event highlight">Inscription</span></div>
 <div class="schedule-item"><span class="schedule-time" id="fri_warmup_fr_time_display">18:30</span><span class="schedule-event highlight">Échauffement</span><div class="ws-levels ws-levels-full" style="grid-template-columns:1fr;"><div class="ws-level-row"><div class="ws-level-teacher" id="fri_warmup_info_fr_t">Professeur: TBA</div><div class="ws-level-room" id="fri_warmup_info_fr_r">Salle: TBA</div></div></div></div>
 <div class="schedule-item"><span class="schedule-time">19:00</span><span class="schedule-event highlight">Roda<span class="schedule-badge">🎵 Live</span></span></div>
@@ -734,8 +734,6 @@ function setLang(lang){
   var btn=document.getElementById('langToggleBtn');
   if(btn) btn.textContent=(flags[lang]||'')+' '+(labels[lang]||lang.toUpperCase());
   document.getElementById('langDropdown').style.display='none';
-  );
-  }
   var badge = document.getElementById('passBadge');
   if(badge) { badge.remove(); showPassBadge(); }
 }
@@ -1514,10 +1512,6 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }).catch(function(e){ console.warn('[Sync] S3 fetch failed, using local cache:', e.message); });
   checkPartyPass();
-  // Parse flags with Twemoji for cross-platform rendering
-  );
-
-  }
   // URL routing handled by IIFE before body close
   if(window.location.search.indexOf('pass=confirmed') !== -1){
     goPage('party');
